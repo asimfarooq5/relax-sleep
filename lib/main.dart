@@ -5,6 +5,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
+import 'screens/splash.dart';
+import 'screens/onboarding.dart';
+import 'screens/auth.dart';
+import 'screens/sleep_schedule.dart';
+import 'screens/profile.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -74,6 +79,16 @@ class SoundMixApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Relax & Sleep',
+      initialRoute: '/splash',
+      routes: {
+        '/splash':      (_) => const SplashScreen(),
+        '/onboarding':  (_) => const OnboardingScreen(),
+        '/auth':        (_) => const EmailLoginScreen(),
+        '/otp':         (_) => const OtpScreen(),
+        '/home':        (_) => const SoundMixShell(),
+        '/settings':    (_) => const SettingsScreen(),
+        '/sleep-schedule': (_) => const SleepScheduleScreen(),
+      },
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -83,28 +98,7 @@ class SoundMixApp extends StatelessWidget {
         ),
         scaffoldBackgroundColor: _C.bg,
         fontFamily: 'Roboto',
-        navigationBarTheme: NavigationBarThemeData(
-          backgroundColor: _C.navBg,
-          surfaceTintColor: Colors.transparent,
-          indicatorColor: _C.purple.withValues(alpha: 0.26),
-          labelTextStyle: WidgetStateProperty.resolveWith((states) {
-            final sel = states.contains(WidgetState.selected);
-            return TextStyle(
-              fontSize: 11,
-              fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
-              color: sel ? _C.purpleHi : _C.textMut,
-            );
-          }),
-          iconTheme: WidgetStateProperty.resolveWith((states) {
-            final sel = states.contains(WidgetState.selected);
-            return IconThemeData(
-              color: sel ? _C.purpleHi : _C.textMut,
-              size: 22,
-            );
-          }),
-        ),
       ),
-      home: const SoundMixShell(),
     );
   }
 }
@@ -257,21 +251,22 @@ class _SoundMixShellState extends State<SoundMixShell> {
 
   @override
   Widget build(BuildContext context) {
+    // Tab 0:Home  1:Sounds  2:Sleep(FAB)  3:Mix  4:Profile
     final pages = [
+      _HomeScreen(
+        sounds: _sounds,
+        activeSounds: _active,
+        isPlaying: _isPlaying,
+        onGoToSounds: () => setState(() => _index = 1),
+        onGoToPlayer: () => setState(() => _index = 2),
+        onTogglePlaying: _togglePlay,
+      ),
       _LibraryScreen(
         sounds: _sounds,
         onToggle: _toggle,
         onAddCustom: _pickFile,
         onEditTimer: _showTimer,
-        onOpenMix: () => setState(() => _index = 1),
-        onOpenPremium: _openPremium,
-      ),
-      _MixScreen(
-        sounds: _active,
-        onVolume: _setVolume,
-        onRemove: _remove,
-        onAdd: _showAddSheet,
-        onSave: _save,
+        onOpenMix: () => setState(() => _index = 3),
         onOpenPremium: _openPremium,
       ),
       _PlayerScreen(
@@ -282,50 +277,62 @@ class _SoundMixShellState extends State<SoundMixShell> {
         onMasterVolume: _setMaster,
         onOpenPremium: _openPremium,
       ),
-      _QueueScreen(
+      _MixScreen(
         sounds: _active,
-        isPlaying: _isPlaying,
-        isFavorite: _isFavorite,
-        timerLabel: _timerLabel,
-        onTogglePlaying: _togglePlay,
-        onToggleFavorite: () => setState(() => _isFavorite = !_isFavorite),
         onVolume: _setVolume,
         onRemove: _remove,
         onAdd: _showAddSheet,
-        onShuffle: _shuffle,
-        onTimer: _showTimer,
+        onSave: _save,
         onOpenPremium: _openPremium,
       ),
+      const ProfileScreen(),
     ];
 
     return Scaffold(
       backgroundColor: _C.bg,
       body: SafeArea(child: pages[_index]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (v) => setState(() => _index = v),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.library_music_outlined),
-            selectedIcon: Icon(Icons.library_music_rounded),
-            label: 'Library',
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => setState(() => _index = 2),
+        backgroundColor: const Color(0xff00D4B4),
+        elevation: 4,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              _isPlaying ? Icons.pause_rounded : Icons.bedtime_rounded,
+              color: const Color(0xff0D2A27),
+              size: 26,
+            ),
+          ],
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: BottomAppBar(
+        color: _C.navBg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 8,
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        child: SizedBox(
+          height: 58,
+          child: Row(
+            children: [
+              _NavItem(icon: Icons.home_rounded, label: 'Home',
+                  sel: _index == 0,
+                  onTap: () => setState(() => _index = 0)),
+              _NavItem(icon: Icons.library_music_rounded, label: 'Sounds',
+                  sel: _index == 1,
+                  onTap: () => setState(() => _index = 1)),
+              const Expanded(child: SizedBox()), // FAB gap
+              _NavItem(icon: Icons.tune_rounded, label: 'Mix',
+                  sel: _index == 3,
+                  onTap: () => setState(() => _index = 3)),
+              _NavItem(icon: Icons.person_rounded, label: 'Profile',
+                  sel: _index == 4,
+                  onTap: () => setState(() => _index = 4)),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.tune_outlined),
-            selectedIcon: Icon(Icons.tune_rounded),
-            label: 'Mix',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.play_circle_outline_rounded),
-            selectedIcon: Icon(Icons.play_circle_rounded),
-            label: 'Player',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.queue_music_outlined),
-            selectedIcon: Icon(Icons.queue_music_rounded),
-            label: 'Queue',
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1663,6 +1670,340 @@ class _BlossomPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter _) => false;
+}
+
+// ── Nav Item ──────────────────────────────────────────────────────────────────
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.sel,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final bool sel;
+  final VoidCallback onTap;
+
+  static const _teal = Color(0xff00D4B4);
+  static const _muted = Color(0xff6E6B90);
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: sel ? _teal : _muted, size: 22),
+            const SizedBox(height: 3),
+            Text(label,
+              style: TextStyle(
+                fontSize: 10,
+                color: sel ? _teal : _muted,
+                fontWeight: sel ? FontWeight.w700 : FontWeight.w400,
+              )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Home Screen ───────────────────────────────────────────────────────────────
+
+class _HomeScreen extends StatelessWidget {
+  const _HomeScreen({
+    required this.sounds,
+    required this.activeSounds,
+    required this.isPlaying,
+    required this.onGoToSounds,
+    required this.onGoToPlayer,
+    required this.onTogglePlaying,
+  });
+  final List<MixSound> sounds;
+  final List<MixSound> activeSounds;
+  final bool isPlaying;
+  final VoidCallback onGoToSounds;
+  final VoidCallback onGoToPlayer;
+  final VoidCallback onTogglePlaying;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      slivers: [
+        // Header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+            child: Row(children: [
+              Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                    const Color(0xff00D4B4).withValues(alpha: 0.3),
+                    _C.purple.withValues(alpha: 0.3),
+                  ]),
+                  shape: BoxShape.circle),
+                child: const Icon(Icons.person_rounded,
+                    color: Colors.white, size: 22)),
+              const SizedBox(width: 12),
+              const Column(crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Hi User,', style: TextStyle(fontSize: 12, color: _C.textSub)),
+                  Text('Welcome', style: TextStyle(fontSize: 17,
+                      fontWeight: FontWeight.w800, color: _C.text)),
+                ]),
+              const Spacer(),
+              _IconBtn(icon: Icons.timer_outlined,
+                  onTap: () {}),
+              const SizedBox(width: 8),
+              _IconBtn(icon: Icons.share_rounded, onTap: () {}),
+              const SizedBox(width: 8),
+              _IconBtn(icon: Icons.notifications_outlined, onTap: () {}),
+            ]),
+          ),
+        ),
+        // Active mix card
+        if (activeSounds.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+              child: GestureDetector(
+                onTap: onGoToPlayer,
+                child: Container(
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      _C.purple.withValues(alpha: 0.55),
+                      const Color(0xff00D4B4).withValues(alpha: 0.35),
+                    ]),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: _C.purple.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(children: [
+                    Expanded(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Now Playing',
+                          style: TextStyle(fontSize: 12, color: Colors.white70)),
+                        const SizedBox(height: 4),
+                        Text('${activeSounds.length} sounds active',
+                          style: const TextStyle(fontSize: 17,
+                              fontWeight: FontWeight.w800, color: _C.text)),
+                        const SizedBox(height: 8),
+                        Wrap(spacing: 6, children: activeSounds.take(3).map((s) =>
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: s.color.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: s.color.withValues(alpha: 0.4))),
+                            child: Text(s.name, style: TextStyle(
+                                color: s.color, fontSize: 11,
+                                fontWeight: FontWeight.w600)),
+                          ),
+                        ).toList()),
+                      ],
+                    )),
+                    GestureDetector(
+                      onTap: onTogglePlaying,
+                      child: Container(
+                        width: 52, height: 52,
+                        decoration: const BoxDecoration(
+                          color: Color(0xff00D4B4),
+                          shape: BoxShape.circle),
+                        child: Icon(
+                          isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: const Color(0xff0D2A27), size: 28),
+                      ),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+          ),
+        // What's new banner
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xff1A1060), Color(0xff2A2080)]),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _C.border),
+              ),
+              child: Row(children: [
+                Expanded(child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text("What's new?",
+                      style: TextStyle(fontSize: 14,
+                          fontWeight: FontWeight.w700, color: _C.text)),
+                    const SizedBox(height: 4),
+                    Text('Discover new rain sounds for sleep',
+                      style: TextStyle(fontSize: 12, color: _C.textSub)),
+                  ],
+                )),
+                Container(
+                  width: 48, height: 48,
+                  decoration: BoxDecoration(
+                    color: _C.purple.withValues(alpha: 0.35),
+                    shape: BoxShape.circle),
+                  child: const Icon(Icons.auto_awesome_rounded,
+                      color: Colors.white, size: 22)),
+              ]),
+            ),
+          ),
+        ),
+        // Sound Mixes section
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(20, 22, 20, 12),
+            child: Row(children: [
+              Text('Sound Library',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
+                    color: _C.text)),
+              Spacer(),
+              Text('See all →',
+                style: TextStyle(fontSize: 13, color: Color(0xff00D4B4))),
+            ]),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: SizedBox(
+            height: 110,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              scrollDirection: Axis.horizontal,
+              itemCount: sounds.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) {
+                final s = sounds[i];
+                return GestureDetector(
+                  onTap: onGoToSounds,
+                  child: Column(children: [
+                    Container(
+                      width: 68, height: 68,
+                      decoration: BoxDecoration(
+                        color: s.color.withValues(alpha: 0.18),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: s.active
+                              ? s.color.withValues(alpha: 0.6)
+                              : _C.border,
+                          width: s.active ? 2 : 1)),
+                      child: Icon(s.icon, color: s.color, size: 28)),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: 68,
+                      child: Text(s.name,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: s.active ? _C.text : _C.textSub,
+                          fontWeight: s.active
+                              ? FontWeight.w600 : FontWeight.w400,
+                        )),
+                    ),
+                  ]),
+                );
+              },
+            ),
+          ),
+        ),
+        // Quick actions
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Row(children: [
+              Expanded(child: _QuickCard(
+                icon: Icons.add_rounded,
+                label: 'Build a Mix',
+                color: const Color(0xff150F22),
+                borderColor: const Color(0xff2A1848),
+                onTap: onGoToSounds,
+              )),
+              const SizedBox(width: 12),
+              Expanded(child: _QuickCard(
+                icon: Icons.schedule_rounded,
+                label: 'Sleep Schedule',
+                color: const Color(0xff0D1820),
+                borderColor: const Color(0xff152535),
+                onTap: () => Navigator.pushNamed(context, '/sleep-schedule'),
+              )),
+            ]),
+          ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
+      ],
+    );
+  }
+}
+
+class _IconBtn extends StatelessWidget {
+  const _IconBtn({required this.icon, required this.onTap});
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36, height: 36,
+        decoration: BoxDecoration(
+          color: _C.s2,
+          shape: BoxShape.circle,
+          border: Border.all(color: _C.border)),
+        child: Icon(icon, color: _C.textSub, size: 18)),
+    );
+  }
+}
+
+class _QuickCard extends StatelessWidget {
+  const _QuickCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.borderColor,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final Color color, borderColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 56,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor)),
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(icon, size: 18, color: _C.textSub),
+          const SizedBox(width: 8),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600,
+              fontSize: 13, color: _C.textSub)),
+        ]),
+      ),
+    );
+  }
 }
 
 // ── Premium Page ──────────────────────────────────────────────────────────────
