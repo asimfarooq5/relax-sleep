@@ -1,4 +1,4 @@
-package com.example.relax_sleep
+package com.relaxsleep.app
 
 import io.flutter.embedding.android.FlutterActivity
 

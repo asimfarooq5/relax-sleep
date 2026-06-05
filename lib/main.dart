@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
@@ -11,8 +12,9 @@ import 'screens/auth.dart';
 import 'screens/sleep_schedule.dart';
 import 'screens/profile.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -81,12 +83,11 @@ class SoundMixApp extends StatelessWidget {
       title: 'Relax & Sleep',
       initialRoute: '/splash',
       routes: {
-        '/splash':      (_) => const SplashScreen(),
-        '/onboarding':  (_) => const OnboardingScreen(),
-        '/auth':        (_) => const EmailLoginScreen(),
-        '/otp':         (_) => const OtpScreen(),
-        '/home':        (_) => const SoundMixShell(),
-        '/settings':    (_) => const SettingsScreen(),
+        '/splash':         (_) => const SplashScreen(),
+        '/onboarding':     (_) => const OnboardingScreen(),
+        '/auth':           (_) => const EmailLoginScreen(),
+        '/home':           (_) => const SoundMixShell(),
+        '/settings':       (_) => const SettingsScreen(),
         '/sleep-schedule': (_) => const SleepScheduleScreen(),
       },
       theme: ThemeData(
@@ -260,6 +261,7 @@ class _SoundMixShellState extends State<SoundMixShell> {
         onGoToSounds: () => setState(() => _index = 1),
         onGoToPlayer: () => setState(() => _index = 2),
         onTogglePlaying: _togglePlay,
+        onShowTimer: _showTimer,
       ),
       _LibraryScreen(
         sounds: _sounds,
@@ -1723,6 +1725,7 @@ class _HomeScreen extends StatelessWidget {
     required this.onGoToSounds,
     required this.onGoToPlayer,
     required this.onTogglePlaying,
+    required this.onShowTimer,
   });
   final List<MixSound> sounds;
   final List<MixSound> activeSounds;
@@ -1730,6 +1733,7 @@ class _HomeScreen extends StatelessWidget {
   final VoidCallback onGoToSounds;
   final VoidCallback onGoToPlayer;
   final VoidCallback onTogglePlaying;
+  final VoidCallback onShowTimer;
 
   @override
   Widget build(BuildContext context) {
@@ -1758,12 +1762,23 @@ class _HomeScreen extends StatelessWidget {
                       fontWeight: FontWeight.w800, color: _C.text)),
                 ]),
               const Spacer(),
-              _IconBtn(icon: Icons.timer_outlined,
-                  onTap: () {}),
+              _IconBtn(icon: Icons.timer_outlined, onTap: onShowTimer),
               const SizedBox(width: 8),
-              _IconBtn(icon: Icons.share_rounded, onTap: () {}),
+              _IconBtn(
+                icon: Icons.share_rounded,
+                onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Relax & Sleep — Share with friends!'),
+                    behavior: SnackBarBehavior.floating,
+                    margin: EdgeInsets.all(16),
+                  ),
+                ),
+              ),
               const SizedBox(width: 8),
-              _IconBtn(icon: Icons.notifications_outlined, onTap: () {}),
+              _IconBtn(
+                icon: Icons.notifications_outlined,
+                onTap: () => Navigator.pushNamed(context, '/sleep-schedule'),
+              ),
             ]),
           ),
         ),
@@ -1866,16 +1881,19 @@ class _HomeScreen extends StatelessWidget {
           ),
         ),
         // Sound Mixes section
-        const SliverToBoxAdapter(
+        SliverToBoxAdapter(
           child: Padding(
-            padding: EdgeInsets.fromLTRB(20, 22, 20, 12),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 12),
             child: Row(children: [
-              Text('Sound Library',
+              const Text('Sound Library',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800,
                     color: _C.text)),
-              Spacer(),
-              Text('See all →',
-                style: TextStyle(fontSize: 13, color: Color(0xff00D4B4))),
+              const Spacer(),
+              GestureDetector(
+                onTap: onGoToSounds,
+                child: const Text('See all →',
+                  style: TextStyle(fontSize: 13, color: Color(0xff00D4B4))),
+              ),
             ]),
           ),
         ),
