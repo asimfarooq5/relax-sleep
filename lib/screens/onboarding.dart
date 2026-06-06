@@ -98,11 +98,11 @@ class _IntroPage extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  const Color(0xff0C0816).withValues(alpha: 0.4),
-                  const Color(0xff0C0816).withValues(alpha: 0.92),
+                  const Color(0xff0C0816).withValues(alpha: 0.10),
+                  const Color(0xff0C0816).withValues(alpha: 0.78),
                   const Color(0xff1E1B4B),
                 ],
-                stops: const [0, 0.38, 0.62, 1],
+                stops: const [0, 0.50, 0.72, 1],
               ),
             ),
           ),
@@ -324,115 +324,178 @@ class _GoalsPage extends StatelessWidget {
 class _CampfirePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Dark sky
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xff040208), Color(0xff0C0810), Color(0xff1A0A08)],
-        ).createShader(Offset.zero & size),
+    final w = size.width;
+    final h = size.height;
+    final cx = w * .5;
+    final gy = h * .70;
+
+    // Night sky gradient
+    canvas.drawRect(Offset.zero & size,
+      Paint()..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xff010105), Color(0xff08040E), Color(0xff180C06)],
+        stops: [0.0, 0.65, 1.0],
+      ).createShader(Offset.zero & size),
     );
 
-    // Stars
-    final starPaint = Paint()..color = Colors.white.withValues(alpha: 0.7);
+    // Stars (seeded, deterministic)
     final rng = math.Random(42);
-    for (var i = 0; i < 80; i++) {
+    for (var i = 0; i < 110; i++) {
       canvas.drawCircle(
-        Offset(rng.nextDouble() * size.width, rng.nextDouble() * size.height * .55),
-        rng.nextDouble() * 1.5 + 0.5,
-        starPaint,
+        Offset(rng.nextDouble() * w, rng.nextDouble() * h * .62),
+        rng.nextDouble() * 1.6 + 0.3,
+        Paint()..color = Colors.white.withValues(alpha: 0.3 + rng.nextDouble() * 0.7),
       );
     }
 
     // Ground
     canvas.drawRect(
-      Rect.fromLTWH(0, size.height * .72, size.width, size.height * .28),
-      Paint()..color = const Color(0xff0A0608),
+      Rect.fromLTWH(0, gy, w, h - gy),
+      Paint()..color = const Color(0xff060302),
     );
 
-    // Fire glow
+    // Ground glow (firelight on earth)
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(cx, gy + h * .045), width: w * .75, height: h * .085),
+      Paint()..shader = RadialGradient(
+        colors: [const Color(0xffFF5500).withValues(alpha: 0.40), Colors.transparent],
+      ).createShader(Rect.fromCenter(
+        center: Offset(cx, gy + h * .045), width: w * .75, height: h * .085,
+      )),
+    );
+
+    // Wide fire halo
     canvas.drawCircle(
-      Offset(size.width * .5, size.height * .72),
-      size.width * .45,
+      Offset(cx, gy - h * .04),
+      w * .52,
+      Paint()..shader = RadialGradient(
+        colors: [
+          const Color(0xffFF7700).withValues(alpha: 0.60),
+          const Color(0xffFF3300).withValues(alpha: 0.25),
+          Colors.transparent,
+        ],
+        stops: [0.0, 0.42, 1.0],
+      ).createShader(Rect.fromCircle(
+        center: Offset(cx, gy - h * .04), radius: w * .52,
+      )),
+    );
+
+    // Logs — two crossed sticks
+    final logBase = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = 16
+      ..color = const Color(0xff4A2008);
+    canvas.drawLine(Offset(cx - w * .26, gy + 10), Offset(cx + w * .10, gy - 8), logBase);
+    canvas.drawLine(Offset(cx + w * .26, gy + 10), Offset(cx - w * .10, gy - 8), logBase);
+    // Log highlight sheen
+    canvas.drawLine(
+      Offset(cx - w * .24, gy + 7), Offset(cx + w * .09, gy - 5),
       Paint()
-        ..shader = RadialGradient(
-          colors: [
-            const Color(0xffFF8C00).withValues(alpha: 0.45),
-            const Color(0xffFF4500).withValues(alpha: 0.25),
-            Colors.transparent,
-          ],
-        ).createShader(Rect.fromCircle(
-          center: Offset(size.width * .5, size.height * .72),
-          radius: size.width * .45,
-        )),
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeWidth = 4
+        ..color = const Color(0xff9B5020).withValues(alpha: 0.55),
     );
 
-    // Flames
-    final flame1 = Paint()
-      ..shader = LinearGradient(
+    // ── Flame layer 1: Wide outer orange (cubic bezier = wide base, tapers to tip) ──
+    final r1 = Rect.fromLTWH(cx - w * .28, gy - h * .30, w * .56, h * .30);
+    canvas.drawPath(
+      Path()
+        ..moveTo(cx - w * .24, gy)
+        ..cubicTo(cx - w * .30, gy - h * .07,  // C1: slight outward bulge near base
+                  cx - w * .04, gy - h * .24,  // C2: curves inward to tip
+                  cx, gy - h * .30)             // tip
+        ..cubicTo(cx + w * .04, gy - h * .24,
+                  cx + w * .30, gy - h * .07,
+                  cx + w * .24, gy)
+        ..close(),
+      Paint()..shader = LinearGradient(
         begin: Alignment.bottomCenter,
         end: Alignment.topCenter,
-        colors: [const Color(0xffFF6600), const Color(0xffFFCC00).withValues(alpha: 0)],
-      ).createShader(Rect.fromLTWH(
-          size.width * .38, size.height * .46, size.width * .24, size.height * .26));
-    final flamePath = Path()
-      ..moveTo(size.width * .42, size.height * .72)
-      ..quadraticBezierTo(size.width * .38, size.height * .58,
-          size.width * .50, size.height * .46)
-      ..quadraticBezierTo(size.width * .62, size.height * .58,
-          size.width * .58, size.height * .72)
-      ..close();
-    canvas.drawPath(flamePath, flame1);
+        colors: [
+          const Color(0xffCC3000),
+          const Color(0xffFF7000).withValues(alpha: 0.80),
+          const Color(0xffFFAA00).withValues(alpha: 0.0),
+        ],
+        stops: [0.0, 0.50, 1.0],
+      ).createShader(r1),
+    );
 
-    final flame2 = Paint()
-      ..shader = LinearGradient(
+    // ── Flame layer 2: Medium amber (leans slightly right for natural look) ──
+    final r2 = Rect.fromLTWH(cx - w * .20, gy - h * .38, w * .40, h * .38);
+    canvas.drawPath(
+      Path()
+        ..moveTo(cx - w * .18, gy)
+        ..cubicTo(cx - w * .22, gy - h * .08,
+                  cx - w * .02, gy - h * .28,
+                  cx + w * .01, gy - h * .38)
+        ..cubicTo(cx + w * .05, gy - h * .28,
+                  cx + w * .22, gy - h * .08,
+                  cx + w * .18, gy)
+        ..close(),
+      Paint()..shader = LinearGradient(
         begin: Alignment.bottomCenter,
         end: Alignment.topCenter,
-        colors: [const Color(0xffFF4400), const Color(0xffFFAA00).withValues(alpha: 0)],
-      ).createShader(Rect.fromLTWH(
-          size.width * .42, size.height * .50, size.width * .16, size.height * .22));
-    final flamePath2 = Path()
-      ..moveTo(size.width * .45, size.height * .72)
-      ..quadraticBezierTo(size.width * .42, size.height * .60,
-          size.width * .50, size.height * .50)
-      ..quadraticBezierTo(size.width * .58, size.height * .60,
-          size.width * .55, size.height * .72)
-      ..close();
-    canvas.drawPath(flamePath2, flame2);
+        colors: [
+          const Color(0xffFF5000),
+          const Color(0xffFF9900).withValues(alpha: 0.80),
+          const Color(0xffFFDD00).withValues(alpha: 0.0),
+        ],
+        stops: [0.0, 0.48, 1.0],
+      ).createShader(r2),
+    );
 
-    // Sparks
-    final sparkPaint = Paint()..color = const Color(0xffFFAA00).withValues(alpha: 0.8);
-    const sparkPositions = [
-      (0.46, 0.43), (0.52, 0.40), (0.48, 0.38), (0.55, 0.44), (0.44, 0.47),
+    // ── Flame layer 3: Bright inner yellow ──
+    final r3 = Rect.fromLTWH(cx - w * .13, gy - h * .30, w * .26, h * .28);
+    canvas.drawPath(
+      Path()
+        ..moveTo(cx - w * .12, gy - h * .01)
+        ..cubicTo(cx - w * .15, gy - h * .07,
+                  cx - w * .02, gy - h * .22,
+                  cx, gy - h * .30)
+        ..cubicTo(cx + w * .02, gy - h * .22,
+                  cx + w * .15, gy - h * .07,
+                  cx + w * .12, gy - h * .01)
+        ..close(),
+      Paint()..shader = LinearGradient(
+        begin: Alignment.bottomCenter,
+        end: Alignment.topCenter,
+        colors: [
+          const Color(0xffFFDD00),
+          const Color(0xffFFFF99).withValues(alpha: 0.80),
+          Colors.white.withValues(alpha: 0.0),
+        ],
+        stops: [0.0, 0.36, 1.0],
+      ).createShader(r3),
+    );
+
+    // Hot white core at base
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(cx, gy - h * .06), width: w * .13, height: h * .10),
+      Paint()..shader = RadialGradient(
+        colors: [
+          Colors.white.withValues(alpha: 0.95),
+          const Color(0xffFFFF88).withValues(alpha: 0.60),
+          Colors.transparent,
+        ],
+        stops: [0.0, 0.38, 1.0],
+      ).createShader(Rect.fromCenter(
+        center: Offset(cx, gy - h * .06), width: w * .13, height: h * .10,
+      )),
+    );
+
+    // Sparks / embers above flame
+    const sparks = <(double, double, double)>[
+      (0.44, 0.38, 1.6), (0.54, 0.35, 1.3), (0.50, 0.32, 1.1),
+      (0.57, 0.40, 1.5), (0.45, 0.36, 1.2), (0.48, 0.30, 1.0),
+      (0.55, 0.33, 1.4), (0.60, 0.38, 1.1), (0.42, 0.34, 1.3),
     ];
-    for (final sp in sparkPositions) {
-      canvas.drawCircle(
-        Offset(size.width * sp.$1, size.height * sp.$2),
-        1.5,
-        sparkPaint,
-      );
+    final sp = Paint()..color = const Color(0xffFFCC44).withValues(alpha: 0.90);
+    for (final (fx, fy, r) in sparks) {
+      canvas.drawCircle(Offset(w * fx, h * fy), r, sp);
     }
-
-    // Logs
-    final log = Paint()..color = const Color(0xff3D1A08);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(size.width * .44, size.height * .74),
-          width: size.width * .32, height: 10),
-        const Radius.circular(5)),
-      log,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(size.width * .56, size.height * .74),
-          width: size.width * .28, height: 10),
-        const Radius.circular(5)),
-      log,
-    );
   }
 
   @override

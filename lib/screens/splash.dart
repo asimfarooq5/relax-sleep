@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ── Design tokens (Figma navy/teal) ──────────────────────────────────────────
 const kBg     = Color(0xff1E1B4B);
@@ -104,6 +105,16 @@ class _SplashScreenState extends State<SplashScreen>
     _slide = Tween<double>(begin: 28, end: 0).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
     _ctrl.forward();
+    _checkAuth();
+  }
+
+  Future<void> _checkAuth() async {
+    await Future.delayed(const Duration(milliseconds: 1400));
+    if (!mounted) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      Navigator.pushReplacementNamed(context, '/home');
+    }
   }
 
   @override
@@ -126,7 +137,7 @@ class _SplashScreenState extends State<SplashScreen>
                   const AppLogo(size: 110),
                   const SizedBox(height: 28),
                   const Text(
-                    'Relaxed Sleep',
+                    'Relax & Sleep',
                     style: TextStyle(
                       fontSize: 34,
                       fontWeight: FontWeight.w900,
