@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/prefs_service.dart';
 import 'splash.dart' show kBg, kCard, kCardHi, kTeal, kText, kSub, kBorder;
 
 class SleepScheduleScreen extends StatefulWidget {
@@ -12,9 +13,53 @@ class _SleepScheduleScreenState extends State<SleepScheduleScreen> {
   bool _wakeEnabled = true;
   TimeOfDay _bedtime = const TimeOfDay(hour: 22, minute: 0);
   TimeOfDay _wakeTime = const TimeOfDay(hour: 7, minute: 0);
+  bool _loading = true;
 
   final List<bool> _dayEnabled = List.filled(7, true);
   final _days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFromFirestore();
+  }
+
+  Future<void> _loadFromFirestore() async {
+    final data = await PrefsService.loadSchedule();
+    if (data.isNotEmpty) {
+      setState(() {
+        _bedtimeEnabled = data['bedtimeEnabled'] as bool? ?? true;
+        _wakeEnabled    = data['wakeEnabled']    as bool? ?? true;
+        _bedtime = TimeOfDay(
+          hour:   data['bedtimeHour']   as int? ?? 22,
+          minute: data['bedtimeMinute'] as int? ?? 0,
+        );
+        _wakeTime = TimeOfDay(
+          hour:   data['wakeHour']   as int? ?? 7,
+          minute: data['wakeMinute'] as int? ?? 0,
+        );
+        final days = data['days'] as List<dynamic>?;
+        if (days != null && days.length == 7) {
+          for (var i = 0; i < 7; i++) {
+            _dayEnabled[i] = days[i] as bool? ?? true;
+          }
+        }
+      });
+    }
+    setState(() => _loading = false);
+  }
+
+  Future<void> _saveToFirestore() async {
+    await PrefsService.saveSchedule({
+      'bedtimeEnabled': _bedtimeEnabled,
+      'wakeEnabled':    _wakeEnabled,
+      'bedtimeHour':   _bedtime.hour,
+      'bedtimeMinute': _bedtime.minute,
+      'wakeHour':   _wakeTime.hour,
+      'wakeMinute': _wakeTime.minute,
+      'days': List<bool>.from(_dayEnabled),
+    });
+  }
 
   String _fmt(TimeOfDay t) {
     final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
@@ -60,6 +105,12 @@ class _SleepScheduleScreenState extends State<SleepScheduleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Color(0xff1E1B4B),
+        body: Center(child: CircularProgressIndicator(color: Color(0xff00D4B4))),
+      );
+    }
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
@@ -219,8 +270,11 @@ class _SleepScheduleScreenState extends State<SleepScheduleScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
                 child: ElevatedButton(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  onPressed: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    await _saveToFirestore();
+                    if (!mounted) return;
+                    messenger.showSnackBar(SnackBar(
                       content: const Text('Schedule saved!'),
                       backgroundColor: kTeal,
                       behavior: SnackBarBehavior.floating,
