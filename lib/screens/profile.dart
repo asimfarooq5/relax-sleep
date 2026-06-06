@@ -151,7 +151,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Column(children: [
+                child: Builder(builder: (context) => Column(children: [
                   _SettingsRow(
                     icon: Icons.alarm_rounded,
                     label: 'Wake-Alarm',
@@ -181,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: 'Wake-up Mood',
                     onTap: () => _showMoodSheet(context),
                   ),
-                ]),
+                ])),
               ),
             ),
             // Settings section
@@ -196,7 +196,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Column(children: [
+                child: Builder(builder: (context) => Column(children: [
                   _SettingsRow(
                     icon: Icons.language_rounded,
                     label: 'Language',
@@ -231,7 +231,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     isLast: true,
                     iconColor: const Color(0xffFF5F5F),
                   ),
-                ]),
+                ])),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
