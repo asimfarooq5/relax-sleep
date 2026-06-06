@@ -1,13 +1,60 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/prefs_service.dart';
 import 'splash.dart' show kBg, kCard, kCardHi, kTeal, kText, kSub, kBorder;
 
 // ── Profile Screen ────────────────────────────────────────────────────────────
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _loading = true;
+  String _language = 'Automatic';
+  String _placement = 'On Bedside Table';
+  bool _reminderEnabled = false;
+  User? _user;
+
+  @override
+  void initState() {
+    super.initState();
+    _user = FirebaseAuth.instance.currentUser;
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final data = await PrefsService.loadSettings();
+    if (!mounted) return;
+    setState(() {
+      _language = data['language'] as String? ?? 'Automatic';
+      _placement = data['placement'] as String? ?? 'On Bedside Table';
+      _reminderEnabled = data['reminderEnabled'] as bool? ?? false;
+      _loading = false;
+    });
+  }
+
+  Future<void> _saveSettings() => PrefsService.saveSettings({
+        'language': _language,
+        'placement': _placement,
+        'reminderEnabled': _reminderEnabled,
+      });
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: Color(0xff1E1B4B),
+        body: Center(child: CircularProgressIndicator(color: Color(0xff00D4B4))),
+      );
+    }
+
+    final displayName = _user?.displayName ?? 'Guest';
+    final email = _user?.email ?? '';
+    final photoUrl = _user?.photoURL;
+
     return Scaffold(
       backgroundColor: kBg,
       body: SafeArea(
@@ -26,26 +73,32 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   child: Row(children: [
                     // Avatar
-                    Container(
-                      width: 58, height: 58,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [kTeal.withValues(alpha: 0.4),
-                              const Color(0xff7B5DFF).withValues(alpha: 0.4)]),
-                        shape: BoxShape.circle),
-                      child: const Icon(Icons.person_rounded,
-                          color: Colors.white, size: 30)),
+                    if (photoUrl != null)
+                      CircleAvatar(
+                        radius: 29,
+                        backgroundImage: NetworkImage(photoUrl),
+                      )
+                    else
+                      Container(
+                        width: 58, height: 58,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [kTeal.withValues(alpha: 0.4),
+                                const Color(0xff7B5DFF).withValues(alpha: 0.4)]),
+                          shape: BoxShape.circle),
+                        child: const Icon(Icons.person_rounded,
+                            color: Colors.white, size: 30)),
                     const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Asim Farooq',
-                            style: TextStyle(fontSize: 18,
+                          Text(displayName,
+                            style: const TextStyle(fontSize: 18,
                                 fontWeight: FontWeight.w800, color: kText)),
                           const SizedBox(height: 2),
-                          const Text('asimfarooq5@gmail.com',
-                            style: TextStyle(fontSize: 13, color: kSub)),
+                          Text(email,
+                            style: const TextStyle(fontSize: 13, color: kSub)),
                           const SizedBox(height: 6),
                           Row(children: [
                             Container(
@@ -98,7 +151,7 @@ class ProfileScreen extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Builder(builder: (context) => Column(children: [
+                child: Column(children: [
                   _SettingsRow(
                     icon: Icons.alarm_rounded,
                     label: 'Wake-Alarm',
@@ -108,6 +161,7 @@ class ProfileScreen extends StatelessWidget {
                   _SettingsRow(
                     icon: Icons.location_on_rounded,
                     label: 'Placement',
+                    sub: _placement,
                     onTap: () => _showPlacementSheet(context),
                   ),
                   _SettingsRow(
@@ -127,7 +181,7 @@ class ProfileScreen extends StatelessWidget {
                     label: 'Wake-up Mood',
                     onTap: () => _showMoodSheet(context),
                   ),
-                ])),
+                ]),
               ),
             ),
             // Settings section
@@ -142,17 +196,17 @@ class ProfileScreen extends StatelessWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Builder(builder: (context) => Column(children: [
+                child: Column(children: [
                   _SettingsRow(
                     icon: Icons.language_rounded,
                     label: 'Language',
-                    sub: 'Automatic',
+                    sub: _language,
                     onTap: () => _showLanguageSheet(context),
                   ),
                   _SettingsRow(
                     icon: Icons.notifications_rounded,
                     label: 'Sleep Reminder',
-                    sub: 'Off',
+                    sub: _reminderEnabled ? 'On' : 'Off',
                     onTap: () => Navigator.pushNamed(context, '/sleep-schedule'),
                   ),
                   _SettingsRow(
@@ -169,14 +223,57 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.more_horiz_rounded,
                     label: 'More...',
                     onTap: () => Navigator.pushNamed(context, '/settings'),
-                    isLast: true,
                   ),
-                ])),
+                  _SettingsRow(
+                    icon: Icons.logout_rounded,
+                    label: 'Sign Out',
+                    onTap: () => _confirmSignOut(context),
+                    isLast: true,
+                    iconColor: const Color(0xffFF5F5F),
+                  ),
+                ]),
               ),
             ),
             const SliverToBoxAdapter(child: SizedBox(height: 32)),
           ],
         ),
+      ),
+    );
+  }
+
+  void _confirmSignOut(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: kCard,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Sign Out',
+            style: TextStyle(color: kText, fontWeight: FontWeight.w800)),
+        content: const Text('Are you sure you want to sign out?',
+            style: TextStyle(color: kSub)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: kSub)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final nav = Navigator.of(context);
+              nav.pop();
+              await FirebaseAuth.instance.signOut();
+              if (!mounted) return;
+              nav.pushNamedAndRemoveUntil('/', (_) => false);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xffFF5F5F),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: const StadiumBorder(),
+            ),
+            child: const Text('Sign Out',
+                style: TextStyle(fontWeight: FontWeight.w700)),
+          ),
+        ],
       ),
     );
   }
@@ -215,8 +312,13 @@ class ProfileScreen extends StatelessWidget {
                     child: const Icon(Icons.location_on_rounded, color: kTeal, size: 18)),
                   title: Text(opt,
                       style: const TextStyle(color: kText, fontWeight: FontWeight.w600)),
+                  trailing: opt == _placement
+                      ? const Icon(Icons.check_rounded, color: kTeal)
+                      : null,
                   onTap: () {
                     Navigator.pop(context);
+                    setState(() => _placement = opt);
+                    _saveSettings();
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text('Placement set: $opt'),
                       backgroundColor: kCard,
@@ -436,11 +538,13 @@ class ProfileScreen extends StatelessWidget {
                   title: Text(lang,
                       style: const TextStyle(
                           color: kText, fontWeight: FontWeight.w600)),
-                  trailing: lang == 'Automatic'
+                  trailing: lang == _language
                       ? const Icon(Icons.check_rounded, color: kTeal)
                       : null,
                   onTap: () {
                     Navigator.pop(context);
+                    setState(() => _language = lang);
+                    _saveSettings();
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text('Language set to $lang'),
                       backgroundColor: kCard,
@@ -951,15 +1055,18 @@ class _SettingsRow extends StatelessWidget {
     required this.onTap,
     this.sub,
     this.isLast = false,
+    this.iconColor,
   });
   final IconData icon;
   final String label;
   final String? sub;
   final VoidCallback onTap;
   final bool isLast;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
+    final color = iconColor ?? kTeal;
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -982,9 +1089,9 @@ class _SettingsRow extends StatelessWidget {
           Container(
             width: 34, height: 34,
             decoration: BoxDecoration(
-              color: kTeal.withValues(alpha: 0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle),
-            child: Icon(icon, color: kTeal, size: 18)),
+            child: Icon(icon, color: color, size: 18)),
           const SizedBox(width: 14),
           Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
