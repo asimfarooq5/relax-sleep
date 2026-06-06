@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:file_picker/file_picker.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'services/prefs_service.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'screens/splash.dart';
@@ -223,6 +224,7 @@ class _SoundMixShellState extends State<SoundMixShell> {
   void initState() {
     super.initState();
     unawaited(_initAll());
+    unawaited(_loadMixFromFirestore());
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!_isPlaying || _remainingSeconds == 0) return;
       setState(() {
@@ -426,7 +428,42 @@ class _SoundMixShellState extends State<SoundMixShell> {
     _msg('New random mix ready.');
   }
 
-  void _save() => _msg('Mix saved · ${_active.length} sounds.');
+  void _save() {
+    unawaited(_saveMixToFirestore());
+    _msg('Mix saved · ${_active.length} sounds.');
+  }
+
+  Future<void> _loadMixFromFirestore() async {
+    final data = await PrefsService.loadMix();
+    if (data.isEmpty || !mounted) return;
+    final mv = (data['masterVolume'] as num?)?.toDouble();
+    final rawSounds = data['sounds'] as List<dynamic>?;
+    setState(() {
+      if (mv != null) _masterVolume = mv;
+      if (rawSounds != null) {
+        final savedMap = {
+          for (final s in rawSounds) (s as Map)['name'] as String: s
+        };
+        for (final s in _sounds) {
+          final saved = savedMap[s.name];
+          if (saved != null) {
+            s.active = saved['active'] as bool? ?? s.active;
+            s.volume = (saved['volume'] as num?)?.toDouble() ?? s.volume;
+          }
+        }
+      }
+    });
+    for (final s in _sounds) unawaited(_sync(s));
+  }
+
+  Future<void> _saveMixToFirestore() => PrefsService.saveMix(
+        _masterVolume,
+        _sounds.map((s) => {
+          'name': s.name,
+          'active': s.active,
+          'volume': s.volume,
+        }).toList(),
+      );
 
   void _showAddSheet() {
     showModalBottomSheet<void>(
